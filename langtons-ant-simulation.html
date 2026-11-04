@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="description" content="Interactive Langton's ant simulation with 1–20 ants, collision counting, and pinch-to-zoom." />
+  <title>Langton's Ant — Multi-ant Simulation and Collisions</title>
+  <style>
+    :root{color-scheme:dark;--bg:#090e19;--surface:#111a2b;--surface2:#172235;--outline:#29344a;--text:#f5f6f9;--muted:#9ba8ba;--accent:#ff694a;--accent2:#ffab79;--green:#74d7b8}
+    *{box-sizing:border-box}
+    html{min-height:100%;scroll-behavior:smooth}
+    body{margin:0;background:radial-gradient(ellipse at 70% -15%,rgba(90,88,155,.16),transparent 45%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent2);outline-offset:3px}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .wrapper{max-width:1480px;margin:auto;padding:28px clamp(16px,3vw,48px) 42px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:44px}
+    .brand{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:850;letter-spacing:.10em}
+    .brandmark{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;color:#0b1020;background:linear-gradient(135deg,#ffb077,#ff4f42);font-size:22px;font-weight:900;line-height:1}
+    .header-right{display:flex;align-items:center;gap:10px}
+    .topchip{display:flex;align-items:center;gap:7px;border:1px solid #2c3c50;border-radius:24px;padding:7px 12px;color:#bac4d4;font-size:11px;font-weight:800;letter-spacing:.10em;text-transform:uppercase}
+    .pulse{width:6px;height:6px;background:var(--green);border-radius:50%;box-shadow:0 0 0 3px rgba(116,215,184,.12)}
+    .intro{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:24px}
+    .eyebrow{font-size:11px;font-weight:800;letter-spacing:.21em;color:var(--accent2);text-transform:uppercase;margin:0 0 14px}
+    h1{font-size:clamp(36px,5.1vw,74px);line-height:1.02;letter-spacing:-.055em;font-weight:850;margin:0}
+    h1 span{color:var(--accent)}
+    .dek{color:var(--muted);font-size:14px;line-height:1.65;max-width:390px;margin:0 0 5px}
+    .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 14px}
+    .stat{border:1px solid var(--outline);background:linear-gradient(135deg,#141d2d,#101725);padding:17px 19px 16px;border-radius:16px;min-width:0}
+    .stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.15em;font-weight:760;color:#93a1b5;margin-bottom:10px}
+    .stat-val{font-size:clamp(19px,2.4vw,33px);font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:-.035em;line-height:1.1}
+    .stat-val.coral{color:var(--accent)}.stat-val.teal{color:var(--green)}.stat-val.hot{color:#ffbc68}
+    .stat-sub{margin-top:7px;color:#79879c;font-size:11px}
+    .dashboard{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:stretch}
+    .panel{background:var(--surface);border:1px solid var(--outline);border-radius:18px;overflow:hidden}
+    .viewport-panel{display:flex;flex-direction:column;min-width:0}
+    .paneltop{min-height:63px;padding:15px 19px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .paneltitle{font-size:14px;font-weight:800;letter-spacing:-.01em;margin:0}
+    .panelhint{font-size:11px;color:var(--muted);margin-top:5px}
+    .viewoptions{display:flex;align-items:center;gap:5px;border-radius:9px;border:1px solid var(--outline);background:#0c1422;padding:3px}
+    .viewbtn{border:0;color:#90a0b4;background:transparent;padding:7px 11px;border-radius:7px;font-size:11px;font-weight:700;white-space:nowrap}
+    .viewbtn.active{color:#fff;background:#2b3950}
+    .canvas-frame{position:relative;background:#e7e5e1;flex:1;min-height:460px;overflow:hidden;touch-action:none;user-select:none}
+    canvas{display:block;width:100%;height:100%;outline:0}
+    .canvas-corner{position:absolute;z-index:1;top:15px;left:16px;background:rgba(245,244,240,.89);border:1px solid rgba(70,75,88,.10);border-radius:8px;padding:7px 10px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10px;font-weight:800;letter-spacing:.04em;color:#4a5160;pointer-events:none}
+    .canvas-bottom{position:absolute;bottom:14px;left:15px;right:15px;display:flex;align-items:end;justify-content:space-between;pointer-events:none;gap:7px}
+    .legend{padding:7px 9px;display:flex;gap:12px;align-items:center;border-radius:8px;background:rgba(255,255,255,.8);color:#50586a;font-size:10px;font-weight:750}
+    .legend span{display:flex;align-items:center;gap:5px}.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;background:#32394c}.swatch.ant{background:#ff6347;border-radius:50%}
+    .wheelhint{padding:7px 9px;background:rgba(255,255,255,.78);color:#596274;border-radius:8px;font-size:10px}
+    .viewfooter{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;font-size:11px;color:#8c9bad;min-height:48px;flex-wrap:wrap}
+    .viewfooter kbd{border:1px solid #405067;border-radius:4px;background:#202d41;color:#d7e0ed;padding:1px 5px;font-size:10px}
+    .control-panel{padding:21px;display:flex;flex-direction:column;gap:19px}
+    .side-eyebrow{margin:0;color:#98a8bb;font-weight:800;letter-spacing:.12em;font-size:10px;text-transform:uppercase}
+    .section-title{margin:2px 0 0;font-weight:800;font-size:18px;letter-spacing:-.025em}
+    .runbtn{width:100%;border:0;border-radius:12px;background:linear-gradient(100deg,#ff704e,#ff4c46);min-height:54px;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:850;font-size:15px;box-shadow:0 7px 18px #ff583127}
+    .runbtn:hover{filter:brightness(1.08)}
+    .runbtn svg{width:16px;height:16px;fill:currentColor}
+    .btnrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+    .action-btn{min-height:39px;border-radius:9px;border:1px solid #39465a;background:#1b273a;color:#ecf0f5;font-size:11px;font-weight:750;white-space:nowrap}
+    .action-btn:hover{background:#27364b}
+    .slab{padding:16px 0;border-top:1px solid var(--outline);border-bottom:1px solid var(--outline)}
+    .flexbetween{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .small-label{font-size:12px;font-weight:800}.accent-value{font-size:12px;color:var(--accent2);font-weight:850;font-variant-numeric:tabular-nums}
+    input[type=range]{display:block;width:100%;height:28px;margin:13px 0 0;background:transparent;accent-color:var(--accent);cursor:pointer}
+    .rangelabels{display:flex;justify-content:space-between;color:#7f8ca0;font-size:10px;font-weight:700;margin-top:3px}
+    .controlgroup{display:flex;flex-direction:column;gap:12px}
+    .switchrow{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#dce4ef;font-weight:650;font-size:12px}
+    .switchrow input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+    .muted{color:var(--muted)}
+    .tipbox{margin-top:auto;border:1px solid #504234;background:linear-gradient(135deg,#30251f,#251f22);border-radius:12px;padding:14px;line-height:1.5}
+    .tiphead{color:#ffb77c;font-size:10px;letter-spacing:.13em;text-transform:uppercase;font-weight:850;margin:0 0 8px}
+    .tipbox p{font-size:12px;color:#d7c3b9;margin:0}
+    .collision-explain{margin-top:14px;padding:13px 17px;border:1px solid #4e423b;border-radius:12px;background:#231e1d;color:#bfc9d5;font-size:12px;line-height:1.65}
+    .collision-explain strong{color:#ffbc68}
+    .bottom{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:14px}
+    .info{padding:23px 26px}.info h2{margin:0 0 14px;font-size:16px;letter-spacing:-.02em}.info p{line-height:1.65;color:#aab5c7;margin:0;font-size:13px}
+    .rules{display:grid;grid-template-columns:1fr 1fr;gap:12px}.rule{display:flex;align-items:center;gap:12px;background:#182338;border-radius:11px;padding:14px;min-width:0}
+    .square{display:grid;place-items:center;width:43px;height:43px;flex:none;border-radius:8px;font-weight:900;font-size:22px}
+    .square.white{background:#f1efea;color:#232b3c}.square.black{background:#30394f;color:#fff;border:1px solid #536079}
+    .rule b{display:block;font-size:12px;margin-bottom:5px}.rule small{display:block;font-size:11px;color:#9ba8b9;line-height:1.5}
+    .fact{color:#e5bba4!important;margin-top:12px!important;font-size:12px!important}
+    footer{margin-top:23px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;color:#7c8da3;font-size:11px}
+    .footeractions{display:flex;gap:9px}
+    .footbtn{border:1px solid #364359;background:#142135;color:#bfcadb;border-radius:8px;padding:9px 11px;font-size:11px;font-weight:750}
+    .footbtn:hover{background:#23334b}
+    .slider-note{font-size:11px;color:#91a0b4;line-height:1.5;margin-top:10px}
+    .ant-slab{border-bottom:0;padding-bottom:2px}
+    .zoom-controls{position:absolute;z-index:3;top:14px;right:14px;display:flex;flex-direction:column;gap:5px}
+    .zoom-button{pointer-events:auto;touch-action:manipulation;width:37px;height:37px;display:grid;place-items:center;background:rgba(255,255,255,.92);color:#30394d;border:1px solid #b1b7c1;border-radius:9px;font-size:23px;line-height:1;box-shadow:0 2px 6px #2222}
+    .zoom-button:hover{background:#fff}
+    .zoom-button:active{background:#d6dfec}
+    .canvas-frame{cursor:grab;overscroll-behavior:contain;-webkit-user-select:none}
+    .canvas-frame.is-panning{cursor:grabbing}
+    .toast{position:fixed;z-index:10;bottom:22px;left:50%;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#293648;border:1px solid #607087;color:#fff;padding:10px 15px;border-radius:9px;font-size:12px;transition:opacity .2s,transform .2s;box-shadow:0 10px 40px #0006}.toast.show{opacity:1;transform:translate(-50%,0)}
+    @media (max-width:980px){.dashboard{grid-template-columns:1fr}.control-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.tipbox{margin-top:0}.canvas-frame{height:540px;flex:auto;min-height:0}.intro{align-items:start;flex-direction:column;gap:14px}.dek{max-width:630px}}
+    @media (max-width:670px){.wrapper{padding:18px 13px 32px}header{padding-bottom:29px}.header-right .topchip:last-child{display:none}.intro{margin-bottom:20px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:15px}.stat-val{font-size:26px}.dashboard,.bottom{gap:10px}.bottom{grid-template-columns:1fr}.canvas-frame{height:clamp(350px,95vw,530px)}.paneltop{padding:13px 11px}.panelhint{font-size:10px}.control-panel{display:flex;padding:16px;gap:16px}.rule{padding:10px}.square{width:38px;height:38px}.info{padding:20px}.wheelhint{display:none}.viewfooter{font-size:10px}footer{justify-content:center;text-align:center}}
+    @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <div class="brand"><span class="brandmark" aria-hidden="true">↻</span> <span>LANGTON<span style="color:#8492a7"> / </span>LAB</span></div>
+      <div class="header-right"><div class="topchip"><i class="pulse" aria-hidden="true"></i> LIVE SIMULATION</div><div class="topchip">CELLULAR AUTOMATON 01</div></div>
+    </header>
+    <div class="intro">
+      <div><p class="eyebrow">An experiment in emergent complexity</p><h1>Two rules.<br><span>Infinite patterns.</span></h1></div>
+      <p class="dek">Meet Langton’s Ant. One or many tiny explorers share the same world. Two simple rules create astonishing patterns. Hit play and watch them unfold.</p>
+    </div>
+    <section class="stats" aria-label="Simulation statistics">
+      <div class="stat"><div class="stat-label">Simulation steps</div><div class="stat-val coral" id="steps">0</div><div class="stat-sub" id="movesSub">1 ant move per step</div></div>
+      <div class="stat"><div class="stat-label">Black squares</div><div class="stat-val" id="blacks">0</div><div class="stat-sub">Currently flipped</div></div>
+      <div class="stat"><div class="stat-label">Unique squares</div><div class="stat-val" id="visited">0</div><div class="stat-sub">Cells explored</div></div>
+      <div class="stat"><div class="stat-label">Collision events</div><div class="stat-val hot" id="collisions" aria-live="off">0</div><div class="stat-sub" id="collisionsSub">0 overlapping cells now</div></div>
+      <div class="stat"><div class="stat-label">Ant pair contacts</div><div class="stat-val" id="pairCollisions" aria-live="off">0</div><div class="stat-sub">3 ants together = 3 pairs</div></div>
+      <div class="stat"><div class="stat-label">Pattern phase</div><div class="stat-val teal" id="phase">Starting</div><div class="stat-sub" id="phase-sub">Ready to explore</div></div>
+    </section>
+    <main class="dashboard">
+      <section class="panel viewport-panel" aria-label="Simulation area">
+        <div class="paneltop"><div><h2 class="paneltitle">The ant’s universe</h2><div class="panelhint">Every dark square was flipped by an ant.</div></div>
+          <div class="viewoptions" role="group" aria-label="Camera mode"><button type="button" class="viewbtn active" id="fitBtn" aria-pressed="true">Overview</button><button type="button" class="viewbtn" id="followBtn" aria-pressed="false">Follow ant</button></div>
+        </div>
+        <div class="canvas-frame" id="canvasFrame">
+          <canvas id="world" role="img" aria-label="Langton's ant world containing black and white squares and moving colored ants"></canvas>
+          <div class="canvas-corner" id="coordinates">X: 0 · Y: 0 · UP ↑</div>
+          <div class="zoom-controls" role="group" aria-label="Zoom controls"><button type="button" class="zoom-button" id="zoomIn" aria-label="Zoom in" title="Zoom in">+</button><button type="button" class="zoom-button" id="zoomOut" aria-label="Zoom out" title="Zoom out">−</button></div>
+          <div class="canvas-bottom"><div class="legend"><span><i class="swatch"></i>Black tile</span><span><i class="swatch ant"></i>Ants</span></div><div class="wheelhint">Scroll or pinch to zoom · Drag to pan</div></div>
+        </div>
+        <div class="viewfooter"><span id="highwayHint">Tip: with one ant, the « highway » emerges around step <b style="color:#dfebf6">10,000</b>.</span><span>Zoom: <strong id="zoomLabel">100%</strong> · Two-finger pinch supported</span></div>
+      </section>
+      <aside class="panel control-panel" aria-label="Simulation controls">
+        <div><p class="side-eyebrow">Control center</p><h2 class="section-title">Run the experiment</h2></div>
+        <div class="controlgroup"><button class="runbtn" type="button" id="play" aria-label="Start simulation"><svg id="playIcon" viewBox="0 0 20 20"><path d="M5 2.5v15l12-7.5z"/></svg><span id="playText">Start simulation</span></button><div class="btnrow"><button class="action-btn" type="button" id="step1" title="Advance one step">+1 step</button><button class="action-btn" type="button" id="step100" title="Advance 100 steps">+100</button><button class="action-btn" type="button" id="step10000" title="Advance 10,000 steps">+10k ↗</button></div></div>
+        <div class="slab ant-slab"><div class="flexbetween"><label class="small-label" for="antCount">Number of ants</label><output class="accent-value" id="antCountLabel" for="antCount">1 ant</output></div><input type="range" id="antCount" min="1" max="20" step="1" value="1" aria-label="Number of ants"><div class="rangelabels"><span>1 ant</span><span>20 ants</span></div><div class="slider-note">Ants move in turns on the same grid. Changing this value restarts the simulation.</div></div>
+        <div class="slab"><div class="flexbetween"><label class="small-label" for="speed">Simulation speed</label><output class="accent-value" id="speedLabel" for="speed">3,000/s</output></div><input type="range" id="speed" min="0" max="8" step="1" value="5" aria-label="Simulation speed"><div class="rangelabels"><span>10 steps/s</span><span>100,000 steps/s</span></div></div>
+        <div class="controlgroup"><div class="flexbetween"><label class="small-label" for="zoom">Camera zoom</label><output class="accent-value" id="zoomPct">100%</output></div><input type="range" id="zoom" min="10" max="1600" step="5" value="100" aria-label="Camera zoom"><div class="rangelabels"><span>10%</span><span>1600%</span></div><div class="slider-note">Pinch with two fingers to zoom around the spot you touch; drag with one finger to move the map.</div></div>
+        <div class="controlgroup"><div class="switchrow"><label for="grid">Show cell grid</label><input id="grid" type="checkbox"></div><div class="switchrow"><label for="antVisible">Show ant marker</label><input id="antVisible" type="checkbox" checked></div></div>
+        <div class="controlgroup"><button class="action-btn" type="button" id="reset" style="min-height:44px">↺ &nbsp; Reset simulation</button></div>
+        <div class="tipbox"><div class="tiphead">✦ The surprising part</div><p id="surpriseText">With one ant, around 10,000 steps in, the chaos gives way to a repeated diagonal “highway”: a cycle of <b style="color:#fff">104 steps</b>.</p></div>
+      </aside>
+    </main>
+    <section class="collision-explain" aria-label="Collision counting rules"><strong>When is there a collision?</strong> At the end of each simulation step, 2 or more ants on the same cell make <strong>one collision event</strong> for that cell. Three ants together count as <strong>three pair contacts</strong>. Events are counted again if ants overlap in later steps. A glowing orange marker highlights any currently occupied collision cell. Passing one another between cells is not counted.</section>
+    <section class="bottom">
+      <article class="panel info"><h2>Just two rules. That's all.</h2><div class="rules"><div class="rule"><div class="square white" aria-hidden="true">↱</div><div><b>On a white square</b><small>Turn 90° right, flip it black, move forward.</small></div></div><div class="rule"><div class="square black" aria-hidden="true">↰</div><div><b>On a black square</b><small>Turn 90° left, flip it white, move forward.</small></div></div></div></article>
+      <article class="panel info"><h2>How can order emerge?</h2><p id="patternExplanation">One ant begins on an infinitely large, all-white grid. The rules are deterministic. After roughly 10,000 steps the ant forms a repeating diagonal trail.</p><p class="fact" id="patternFact">The single-ant highway has been observed to continue in simulations, but its continuation forever has not been proved.</p></article>
+    </section>
+    <footer><span>Langton’s Ant · Created in 1986 by Chris Langton · Runs locally in your browser, no installation needed.</span><div class="footeractions"><button class="footbtn" type="button" id="share">Copy step link</button><button class="footbtn" type="button" id="save">↓ Save image</button></div></footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    (() => {
+      'use strict';
+      const $ = id => document.getElementById(id);
+      const canvas = $('world');
+      const ctx = canvas.getContext('2d', {alpha:false});
+      const frame = $('canvasFrame');
+      const directions = [[0,-1],[1,0],[0,1],[-1,0]];
+      const arrows = ['UP ↑','RIGHT →','DOWN ↓','LEFT ←'];
+      const speedValues = [10,30,100,300,1000,3000,10000,30000,100000];
+      const nf = new Intl.NumberFormat('en-US');
+      const maxAnts = 20;
+      const antColors = ['#ff563e','#00a9ba','#7755d9','#27a354','#e58f00','#e34e97','#4173d4','#8e6527'];
+      let ants = [];
+      let steps = 0;
+      let black = new Map(), visited = new Set();
+      let collisionEvents = 0, pairCollisions = 0, lastCollisionStep = 0;
+      let currentCollisions = new Map();
+      let minX = 0, maxX = 0, minY = 0, maxY = 0;
+      let running = false, follow = false, gridEnabled = false, showAnt = true;
+      let zoom = 1, panX = 0, panY = 0;
+      let cssW = 1, cssH = 1, dpr = 1, lastTime = 0, carry = 0, lastDraw = 0;
+      let needsDraw = true, lastStats = 0;
+      const pointers = new Map();
+      let lastGesture = null;
+
+      function key(x,y) {return x + ',' + y;}
+      function bounds(x,y) {
+        if(x<minX)minX=x;if(x>maxX)maxX=x;
+        if(y<minY)minY=y;if(y>maxY)maxY=y;
+      }
+      // Ant #1 is the original Langton ant. Extra ants start apart on a ring.
+      // Their moves affect the same shared grid, in stable index order.
+      function makeAnts(count) {
+        const result = [{x:0,y:0,direction:0}];
+        const extra = count-1;
+        const radius = Math.max(24,Math.ceil(extra*2.5));
+        for(let i=0;i<extra;i++) {
+          const theta=2*Math.PI*i/extra;
+          result.push({x:Math.round(radius*Math.cos(theta)),y:Math.round(radius*Math.sin(theta)),direction:i%4});
+        }
+        return result;
+      }
+      function initialize(count) {
+        black = new Map(); visited = new Set(); steps = 0;
+        collisionEvents = 0; pairCollisions = 0; lastCollisionStep = 0;
+        currentCollisions = new Map();
+        ants = makeAnts(count);
+        minX=maxX=minY=maxY=0;
+        for(const ant of ants)bounds(ant.x,ant.y);
+        panX=panY=0;
+        $('antCount').value = String(count);
+        $('antCountLabel').textContent = count===1?'1 ant':count+' ants';
+        needsDraw=true;
+        updateModeText();
+      }
+      // One *global* step moves every ant once (in index order).
+      // Detect shared cells only after all have moved: no transient,
+      // order-dependent collisions are counted while a step is in progress.
+      function countCollisionsAtStep(stepNumber) {
+        const occupied = new Map();
+        for(let index=0;index<ants.length;index++) {
+          const ant=ants[index];
+          const k=key(ant.x,ant.y);
+          let group=occupied.get(k);
+          if(!group){group={x:ant.x,y:ant.y,count:0};occupied.set(k,group);}
+          group.count++;
+        }
+        const overlaps=new Map();
+        for(const [k,group] of occupied) {
+          if(group.count<2)continue;
+          overlaps.set(k,group);
+          collisionEvents++;
+          pairCollisions+=group.count*(group.count-1)/2;
+          lastCollisionStep=stepNumber;
+        }
+        currentCollisions=overlaps;
+      }
+      function step(n) {
+        for(let i=0;i<n;i++) {
+          for(const ant of ants) {
+            const k=key(ant.x,ant.y);
+            const isBlack=black.has(k);
+            ant.direction=(ant.direction+(isBlack?3:1))&3;
+            if(isBlack)black.delete(k);else black.set(k,[ant.x,ant.y]);
+            visited.add(k);
+            ant.x+=directions[ant.direction][0];
+            ant.y+=directions[ant.direction][1];
+            bounds(ant.x,ant.y);
+          }
+          if(ants.length>1)countCollisionsAtStep(steps+i+1);
+        }
+        steps+=n; needsDraw=true;
+      }
+      function updateModeText() {
+        const multiple = ants.length>1;
+        $('highwayHint').innerHTML=multiple
+          ? 'Multi-ant mode: shared tiles make the patterns interact.'
+          : 'Tip: with one ant, the « highway » emerges around step <b style="color:#dfebf6">10,000</b>.';
+        $('surpriseText').innerHTML=multiple
+          ? 'Each ant follows the same two rules, but <b style="color:#fff">all ants share the same black and white tiles</b>. The classic single-ant highway is not guaranteed.'
+          : 'With one ant, around 10,000 steps in, the chaos gives way to a repeated diagonal “highway”: a cycle of <b style="color:#fff">104 steps</b>.';
+        $('patternExplanation').textContent=multiple
+          ? 'Every simulation step moves each ant once, in order. A tile flipped by one ant changes what the next ant sees. The starting positions are deterministic.'
+          : 'One ant begins on an infinitely large, all-white grid. The rules are deterministic. After roughly 10,000 steps the ant forms a repeating diagonal trail.';
+        $('patternFact').textContent=multiple
+          ? 'The multi-ant experiment is different from the original single-ant configuration. There is no general 10,000-step highway guarantee.'
+          : 'The single-ant highway has been observed to continue in simulations, but its continuation forever has not been proved.';
+      }
+      function updateStats() {
+        $('steps').textContent=nf.format(steps);
+        $('blacks').textContent=nf.format(black.size);
+        $('visited').textContent=nf.format(visited.size);
+        $('collisions').textContent=nf.format(collisionEvents);
+        $('pairCollisions').textContent=nf.format(pairCollisions);
+        const currentlyOverlapping=currentCollisions.size;
+        $('collisionsSub').textContent=currentlyOverlapping
+          ? `${currentlyOverlapping} overlapping ${currentlyOverlapping===1?'cell':'cells'} now · last at step ${nf.format(lastCollisionStep)}`
+          : lastCollisionStep
+            ? `Last collision at step ${nf.format(lastCollisionStep)}`
+            : 'No collisions yet';
+        $('movesSub').textContent=ants.length===1
+          ? '1 ant move per step'
+          : `${nf.format(steps*ants.length)} moves · ${ants.length} ants/step`;
+        let phase,description;
+        if(steps===0){phase='Starting';description=`${ants.length} ${ants.length===1?'ant':'ants'} ready`;}
+        else if(ants.length>1){phase='Interacting';description=`${ants.length} ants · shared grid`;}
+        else if(steps<1000){phase='Exploring';description='Early patterns';}
+        else if(steps<10000){phase='Chaotic';description='Complex interactions';}
+        else {phase='Highway';description='Repeating pattern ≈104 steps';}
+        $('phase').textContent=phase;
+        $('phase-sub').textContent=description;
+        const ant=ants[0];
+        $('coordinates').textContent=`${ants.length>1?'ANT #1 · ':''}X: ${nf.format(ant.x)} · Y: ${nf.format(ant.y)} · ${arrows[ant.direction]}`;
+      }
+      function camera() {
+        let midX,midY,base;
+        if(follow){midX=ants[0].x;midY=ants[0].y;base=9;}
+        else {
+          midX=(minX+maxX)/2;midY=(minY+maxY)/2;
+          const worldW=Math.max(23,maxX-minX+9);
+          const worldH=Math.max(23,maxY-minY+9);
+          base=Math.min(16,(cssW-54)/worldW,(cssH-54)/worldH);
+        }
+        const size=Math.max(.01,base*zoom);
+        return {midX:midX+panX,midY:midY+panY,size};
+      }
+      function drawAnt(ant,index,offX,offY,size) {
+        const px=offX+(ant.x+.5)*size,py=offY+(ant.y+.5)*size;
+        if(px < -30 || px > cssW+30 || py < -30 || py > cssH+30)return;
+        const r=Math.max(4,Math.min(11,size*.65));
+        ctx.fillStyle='rgba(255,255,255,.75)';ctx.beginPath();ctx.arc(px,py,r+3,0,2*Math.PI);ctx.fill();
+        ctx.fillStyle=antColors[index%antColors.length];ctx.beginPath();ctx.arc(px,py,r,0,2*Math.PI);ctx.fill();
+        const u=directions[ant.direction];
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.7;ctx.lineCap='round';ctx.beginPath();
+        ctx.moveTo(px-u[0]*r*.35,py-u[1]*r*.35);
+        ctx.lineTo(px+u[0]*r*.70,py+u[1]*r*.70);ctx.stroke();
+      }
+      function drawCollisionMarkers(offX,offY,size) {
+        for(const {x,y,count} of currentCollisions.values()) {
+          const px=offX+(x+.5)*size,py=offY+(y+.5)*size;
+          if(px < -30 || px > cssW+30 || py < -30 || py > cssH+30)continue;
+          const r=Math.max(9,Math.min(18,size*.92));
+          ctx.strokeStyle='#ff9b39';ctx.lineWidth=3;
+          ctx.beginPath();ctx.arc(px,py,r+4,0,2*Math.PI);ctx.stroke();
+          ctx.fillStyle='#d84726';ctx.beginPath();ctx.arc(px,py,Math.max(8,r*.70),0,2*Math.PI);ctx.fill();
+          ctx.font='bold 11px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillStyle='#ffffff';ctx.fillText(String(count),px,py+.5);
+        }
+      }
+      function draw() {
+        const {midX,midY,size}=camera();
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.fillStyle='#e8e6e2';ctx.fillRect(0,0,cssW,cssH);
+        const offX=cssW/2-midX*size,offY=cssH/2-midY*size;
+        if(gridEnabled&&size>=8) {
+          ctx.strokeStyle='rgba(52,61,80,.11)';ctx.lineWidth=1;
+          const startX=((offX%size)+size)%size,startY=((offY%size)+size)%size;
+          ctx.beginPath();
+          for(let x=startX;x<cssW;x+=size){ctx.moveTo(x,0);ctx.lineTo(x,cssH);}
+          for(let y=startY;y<cssH;y+=size){ctx.moveTo(0,y);ctx.lineTo(cssW,y);}
+          ctx.stroke();
+        }
+        ctx.fillStyle='#343d52';
+        const xMin=(-offX/size)-1,xMax=(cssW-offX)/size+1;
+        const yMin=(-offY/size)-1,yMax=(cssH-offY)/size+1;
+        for(const p of black.values()) {
+          const x=p[0],y=p[1];
+          if(x<xMin||x>xMax||y<yMin||y>yMax)continue;
+          const px=offX+x*size,py=offY+y*size;
+          if(size>=3){const inset=size>=11?Math.max(.45,size*.045):0;ctx.fillRect(px+inset,py+inset,Math.max(1,size-inset*2),Math.max(1,size-inset*2));}
+          else ctx.fillRect(Math.floor(px),Math.floor(py),Math.max(1,size),Math.max(1,size));
+        }
+        if(showAnt) {
+          ants.forEach((ant,i)=>drawAnt(ant,i,offX,offY,size));
+          drawCollisionMarkers(offX,offY,size);
+        }
+        const percent=Math.round(zoom*100)+'%';
+        $('zoomLabel').textContent=percent;
+        $('zoomPct').textContent=percent;
+        needsDraw=false;
+      }
+      function resize() {
+        const rect=frame.getBoundingClientRect();
+        cssW=Math.max(1,rect.width);cssH=Math.max(1,rect.height);
+        dpr=Math.min(window.devicePixelRatio||1,2);
+        canvas.width=Math.round(cssW*dpr);canvas.height=Math.round(cssH*dpr);
+        needsDraw=true;draw();
+      }
+      function setRunning(state) {
+        running=state;lastTime=0;carry=0;
+        $('playText').textContent=running?'Pause simulation':'Start simulation';
+        $('play').setAttribute('aria-label',running?'Pause simulation':'Start simulation');
+        $('playIcon').innerHTML=running?'<path d="M4 3h4v14H4zm8 0h4v14h-4z"/>':'<path d="M5 2.5v15l12-7.5z"/>';
+      }
+      function reset() {setRunning(false);initialize(ants.length);updateStats();draw();}
+      function advance(n) {step(n);updateStats();draw();}
+      // Keep the world cell under a screen coordinate fixed while zooming.
+      // This makes wheel zoom and two-finger pinch feel like Google Maps.
+      function screenToWorld(clientX,clientY) {
+        const rect=frame.getBoundingClientRect();
+        const pixelX=clientX-rect.left,pixelY=clientY-rect.top;
+        const c=camera();
+        return {x:c.midX+(pixelX-cssW/2)/c.size,y:c.midY+(pixelY-cssH/2)/c.size};
+      }
+      function anchorWorld(worldX,worldY,clientX,clientY) {
+        const rect=frame.getBoundingClientRect();
+        const px=clientX-rect.left,py=clientY-rect.top;
+        const c=camera();
+        panX+=worldX-c.midX-(px-cssW/2)/c.size;
+        panY+=worldY-c.midY-(py-cssH/2)/c.size;
+      }
+      function zoomAt(targetZoom,clientX,clientY) {
+        const world=screenToWorld(clientX,clientY);
+        zoom=Math.max(.10,Math.min(16,targetZoom));
+        $('zoom').value=String(Math.round(zoom*100/5)*5);
+        anchorWorld(world.x,world.y,clientX,clientY);
+        needsDraw=true;draw();
+      }
+      function zoomAroundWorld(targetZoom,anchorBeforeX,anchorBeforeY,anchorAfterX,anchorAfterY) {
+        const world=screenToWorld(anchorBeforeX,anchorBeforeY);
+        zoom=Math.max(.10,Math.min(16,targetZoom));
+        $('zoom').value=String(Math.round(zoom*100/5)*5);
+        anchorWorld(world.x,world.y,anchorAfterX,anchorAfterY);
+        needsDraw=true;draw();
+      }
+      function setZoom(value){zoomAt(value,frame.getBoundingClientRect().left+cssW/2,frame.getBoundingClientRect().top+cssH/2);}
+      function setView(isFollow) {
+        follow=isFollow;panX=panY=0;
+        $('fitBtn').classList.toggle('active',!follow);
+        $('followBtn').classList.toggle('active',follow);
+        $('fitBtn').setAttribute('aria-pressed',String(!follow));
+        $('followBtn').setAttribute('aria-pressed',String(follow));
+        needsDraw=true;draw();
+      }
+      function loop(ts) {
+        if(!lastTime)lastTime=ts;
+        const elapsed=Math.min(ts-lastTime,120);lastTime=ts;
+        if(running) {
+          carry+=elapsed*speedValues[Number($('speed').value)]/1000;
+          const count=Math.floor(carry);
+          if(count>0) {
+            // Bound work per frame by total ant moves for smooth animation.
+            const batch=Math.min(count,Math.max(1,Math.floor(15000/ants.length)));
+            step(batch);carry-=batch;
+          }
+        }
+        if((needsDraw||running)&&ts-lastDraw>32){draw();lastDraw=ts;}
+        if(ts-lastStats>95){updateStats();lastStats=ts;}
+        requestAnimationFrame(loop);
+      }
+      function notify(s) {
+        const toast=$('toast');toast.textContent=s;toast.classList.add('show');
+        clearTimeout(notify.t);notify.t=setTimeout(()=>toast.classList.remove('show'),2200);
+      }
+      // Pointer events work with a mouse, a stylus and multitouch screens.
+      function gesture() {
+        const positions=[...pointers.values()];
+        if(positions.length===0)return null;
+        if(positions.length===1)return {x:positions[0].x,y:positions[0].y,distance:0};
+        const a=positions[0],b=positions[1];
+        return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,distance:Math.hypot(b.x-a.x,b.y-a.y)};
+      }
+      function onPointerDown(e) {
+        if(e.target.closest('button'))return;
+        if(e.pointerType==='mouse'&&e.button!==0)return;
+        pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+        frame.setPointerCapture(e.pointerId);
+        lastGesture=gesture();
+        frame.classList.add('is-panning');
+        e.preventDefault();
+      }
+      function onPointerMove(e) {
+        if(!pointers.has(e.pointerId))return;
+        pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+        const next=gesture();
+        if(!next||!lastGesture)return;
+        if(pointers.size>=2&&lastGesture.distance>0&&next.distance>0) {
+          zoomAroundWorld(zoom*next.distance/lastGesture.distance,lastGesture.x,lastGesture.y,next.x,next.y);
+        } else if(pointers.size===1) {
+          const size=camera().size;
+          panX-=(next.x-lastGesture.x)/size;
+          panY-=(next.y-lastGesture.y)/size;
+          needsDraw=true;draw();
+        }
+        lastGesture=next;
+        e.preventDefault();
+      }
+      function onPointerEnd(e) {
+        if(!pointers.has(e.pointerId))return;
+        pointers.delete(e.pointerId);
+        if(frame.hasPointerCapture(e.pointerId))frame.releasePointerCapture(e.pointerId);
+        lastGesture=gesture();
+        if(pointers.size===0)frame.classList.remove('is-panning');
+      }
+      $('play').addEventListener('click',()=>setRunning(!running));
+      $('step1').addEventListener('click',()=>advance(1));
+      $('step100').addEventListener('click',()=>advance(100));
+      $('step10000').addEventListener('click',()=>advance(10000));
+      $('reset').addEventListener('click',reset);
+      $('antCount').addEventListener('input',e=>{
+        setRunning(false);
+        initialize(Number(e.target.value));
+        updateStats();draw();
+      });
+      $('speed').addEventListener('input',e=>{$('speedLabel').textContent=nf.format(speedValues[Number(e.target.value)])+'/s';});
+      $('zoom').addEventListener('input',e=>setZoom(Number(e.target.value)/100));
+      $('zoomIn').addEventListener('click',()=>setZoom(zoom*1.4));
+      $('zoomOut').addEventListener('click',()=>setZoom(zoom/1.4));
+      $('grid').addEventListener('change',e=>{gridEnabled=e.target.checked;needsDraw=true;draw();});
+      $('antVisible').addEventListener('change',e=>{showAnt=e.target.checked;needsDraw=true;draw();});
+      $('fitBtn').addEventListener('click',()=>setView(false));
+      $('followBtn').addEventListener('click',()=>setView(true));
+      $('save').addEventListener('click',()=>{
+        const link=document.createElement('a');
+        link.download=`langtons-ant-${ants.length}-ants-step-${steps}.png`;
+        link.href=canvas.toDataURL('image/png');link.click();notify('Image saved');
+      });
+      $('share').addEventListener('click',async()=>{
+        const url=new URL(window.location.href);
+        url.searchParams.set('ants',String(ants.length));
+        url.searchParams.set('steps',String(steps));
+        try{await navigator.clipboard.writeText(url.toString());notify('Step link copied');}
+        catch{window.prompt('Copy this link',url.toString());}
+      });
+      frame.addEventListener('wheel',e=>{
+        e.preventDefault();zoomAt(zoom*(e.deltaY>0?.87:1.15),e.clientX,e.clientY);
+      },{passive:false});
+      frame.addEventListener('pointerdown',onPointerDown);
+      frame.addEventListener('pointermove',onPointerMove);
+      frame.addEventListener('pointerup',onPointerEnd);
+      frame.addEventListener('pointercancel',onPointerEnd);
+      frame.addEventListener('lostpointercapture',onPointerEnd);
+      document.addEventListener('keydown',e=>{
+        const tag=document.activeElement?.tagName||'';
+        if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(tag))return;
+        if(e.code==='Space'){e.preventDefault();setRunning(!running);}
+        if(e.key.toLowerCase()==='n')advance(1);
+        if(e.key.toLowerCase()==='r')reset();
+      });
+      const query=new URLSearchParams(window.location.search);
+      const queryAnts=Number(query.get('ants')||1);
+      const count=Number.isSafeInteger(queryAnts)?Math.max(1,Math.min(maxAnts,queryAnts)):1;
+      initialize(count);
+      const querySteps=Number(query.get('steps')||0);
+      if(Number.isSafeInteger(querySteps)&&querySteps>0&&querySteps*count<=2000000)step(querySteps);
+      updateStats();
+      if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(frame);
+      else window.addEventListener('resize',resize);
+      resize();requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
